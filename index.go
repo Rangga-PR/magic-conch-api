@@ -5,11 +5,28 @@ import (
 	"encoding/json"
 	"math/rand"
 	"net/http"
+	"strings"
 	"time"
 )
 
+type Error struct {
+	ErrorStatus  int
+	ErrorMessage string
+}
+
 type Request struct {
 	Question string `json:"question"`
+}
+
+func (r *Request) validate() []Error {
+	var errors []Error
+
+	if strings.TrimSpace(r.Question) == "" {
+		errors = append(errors, Error{ErrorStatus: 400, ErrorMessage: "You did not ask any Question"})
+		return errors
+	}
+
+	return errors
 }
 
 type Response struct {
@@ -32,9 +49,15 @@ func askMagicConch(w http.ResponseWriter, r *http.Request) {
 
 	var req Request
 	defer r.Body.Close()
+
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if validationErr := req.validate(); len(validationErr) > 0 {
+		http.Error(w, validationErr[0].ErrorMessage, validationErr[0].ErrorStatus)
 		return
 	}
 
