@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"log"
 	"math/rand"
 	"net/http"
 	"strings"
@@ -46,12 +47,14 @@ func generateAnswer() string {
 }
 
 func askMagicConch(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("content-type", "application/json")
 
 	var req Request
-	defer r.Body.Close()
+	var buffer bytes.Buffer
 
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
+	defer r.Body.Close()
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -62,21 +65,16 @@ func askMagicConch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	answer := Response{Answer: generateAnswer()}
-	var buffer bytes.Buffer
-	err = json.NewEncoder(&buffer).Encode(&answer)
-	if err != nil {
+	if err := json.NewEncoder(&buffer).Encode(&answer); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("content-type", "application/json")
 	w.Write([]byte(buffer.String()))
 }
 
 func main() {
 	http.HandleFunc("/", askMagicConch)
-	err := http.ListenAndServe(":8080", nil)
-	if err != nil {
-		panic(err)
-	}
+	log.Print("server is up on port 8080")
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
